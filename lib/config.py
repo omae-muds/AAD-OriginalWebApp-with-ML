@@ -1,5 +1,3 @@
-from typing import Final
-
 from pydantic import BaseSettings
 
 

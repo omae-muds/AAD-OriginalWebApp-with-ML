@@ -49,14 +49,14 @@ class Wakatu:
     _mtagger = MeCab.Tagger()
 
     @classmethod
-    def parse_only_nouns_verbs_adjectives(cls, sentense: str) -> str:
-        """Get "Wakatigaki" from Japanese text.
+    def parse_only_nouns_verbs_adjectives(cls, sentence: str) -> str:
+        """Get Wakatigaki for specific word classes from Japanese sentence.
 
          This returns a parsed string that contain only nouns, verbs, and adjectives.
         But numerals, non-independent verbs, and suffixes are also removed.
 
-        !! These are following Unidic.
-        When using a different dictionary, such as ipadic, some changes are needed.
+        !! These are following Unidic. When using a different dictionary,
+        such as ipadic, some changes are needed.
         """
         # Unidic style
         wclass_allowlist = ["名詞", "動詞", "形容詞"]
@@ -66,12 +66,12 @@ class Wakatu:
 
         term: str
         parsed = ""
-        node = cls._mtagger.parseToNode(sentense)
+        node = cls._mtagger.parseToNode(sentence)
         while node:
             # These indices are following Unidic
             # HINT ipadic format:
-            # [wordClass, wSubClass1, wSubClass2, wSubClass3,
-            #  conjugationType, cSubType, originalForm, reading, pronunciation]
+            #     [wordClass, wSubClass1, wSubClass2, wSubClass3,
+            #      conjugationType, cSubType, originalForm, reading, pronunciation]
 
             features: List[str] = node.feature.split(",")
             if features[0] in wclass_allowlist:

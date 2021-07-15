@@ -1,5 +1,4 @@
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -10,35 +9,6 @@ class Similarity:
     @staticmethod
     def cos_simil(v1, v2, /):
         return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
-
-
-# TODO&REVIEW This is not used now. It's forever?, then remove.
-# REVIEW about `source`
-class Vecotorizer:
-    @staticmethod
-    def wakativector(
-        q_wakatitas: List[str],
-        source: Union[str, Path],
-        calculator: Callable = Similarity.cos_simil,
-    ):
-        # source
-        df = pd.read_csv(source, header=0, index_col=0)
-
-        qvec = [int(col in q_wakatitas) for col in df.columns]
-
-        if sum(qvec) == 0:
-            return None
-        ################
-        simils = pd.DataFrame.from_dict(
-            {name: calculator(qvec, df.loc[name].to_numpy()) for name in df.index},
-            orient="index",
-            columns=["similarity"],
-        )
-        simils = simils.sort_values(by=simils.columns[0], ascending=False)
-        return simils.to_html(
-            border=0,
-            classes=["table", "is-striped", "is-bordered", "is-justify-content-center"],
-        )
 
 
 class Tfidf:

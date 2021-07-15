@@ -133,8 +133,8 @@ async def read_preprocessed_txt_or_deta(
         # Because Aozora-Bunko exports files with Shift-JIS.
         raw = str(raw_bytes, "shift-jis")
         cleansed = Aozora.cleansing(raw)
-        wakatita = Wakatu.parse_only_nouns_verbs_adjectives(cleansed)
-        bwaka = wakatita.encode("utf-8")
+        parsed = Wakatu.parse_only_nouns_verbs_adjectives(cleansed)
+        bparsed = parsed.encode("utf-8")
 
         path_on_drive = Settings().deta_drive_txt_prefix + key
         # TODO Backgroud/Parallel
@@ -142,9 +142,9 @@ async def read_preprocessed_txt_or_deta(
         item = DetaBaseItem(key=key, ts=None, original_fname=filename, path_on_drive=path_on_drive)
         detacon.DetaController.base_put(item)
         # Backgroud/Parallel 2
-        detacon.DetaController.drive_put(name=path_on_drive, data=bwaka)
+        detacon.DetaController.drive_put(name=path_on_drive, data=bparsed)
 
-        with io.BytesIO(bwaka) as bio:
+        with io.BytesIO(bparsed) as bio:
             while chunk := bio.read(chunk_size):
                 yield chunk
                 await asyncio.sleep(ASLEEP_TIME)

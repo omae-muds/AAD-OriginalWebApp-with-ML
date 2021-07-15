@@ -11,8 +11,8 @@ def word_docs_similarity(
 ) -> Union[pd.DataFrame, None]:
     columns, data = Tfidf.tfidf(corpus=corpus)
 
-    qwakati_list = Wakatu.parse_only_nouns_verbs_adjectives(sentense=qword).split()
-    qvec = [int(col in qwakati_list) for col in columns]
+    qparsed_list = Wakatu.parse_only_nouns_verbs_adjectives(sentence=qword).split()
+    qvec = [int(col in qparsed_list) for col in columns]
     if any(qvec):
         df = pd.DataFrame(
             data=[Similarity.cos_simil(qvec, dvec) for dvec in data],
