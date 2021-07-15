@@ -1,6 +1,8 @@
 # AAD-OriginalWebApp-with-ML
 
-## This is University Homework. 
+[![Heroku App Status](http://heroku-shields.herokuapp.com/aad-orgapp-with-ml)](https://aad-orgapp-with-ml.herokuapp.com)
+
+## This is University Homework
 
 - Creating a WebApp with Machine Learning
   - Pytho CGI is used in the course material.
@@ -22,4 +24,3 @@ We were allowed to create most of them freely, **but it meant very hard work.**
 - First time to use Reddis.
 - Using Deta Base, which is similar to Key-Value Store.
 - Using Deta Drive for storage.
-
