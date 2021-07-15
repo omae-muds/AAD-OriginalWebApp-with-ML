@@ -1,5 +1,6 @@
 import re
 import urllib.request
+from functools import lru_cache
 from typing import Final, List
 
 import MeCab
@@ -110,8 +111,9 @@ class Wakatu:
         return wakatigaki[1:]  # Exclude leading whitespace
 
     @classmethod
+    @lru_cache(maxsize=None)
     def _dl_stopwords(cls) -> List[str]:
         """Download a list of Japanese stop words to a class variable."""
         with urllib.request.urlopen(cls.STOPWORDS_URL) as f:
-            lines = f.read().decode("utf-8")
-        return [l.strip() for l in lines if l]
+            raw: str = f.read().decode("utf-8")
+        return raw.splitlines()
