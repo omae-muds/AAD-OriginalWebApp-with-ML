@@ -1,0 +1,51 @@
+{% extends "lec/layout.html.j2" %}
+{% block box %}
+<div class="block">
+    <form class="field are-medium is-justify-content-center" method="POST" enctype="multipart/form-data">
+        <div class="control mb-4">
+            <div id="choose-file" class="file has-name is-fullwidth">
+                <label class="file-label">
+                    <input class="file-input" type="file" accept="text/plain" name="file" required>
+                    <span class="file-cta">
+                        <span class="file-icon">
+                            <span class="fas fa-upload"></span>
+                        </span>
+                        <span class="file-label">
+                            テキストファイル...
+                        </span>
+                    </span>
+                    <span class="file-name is-right has-text-grey">
+                        (未選択)
+                    </span>
+                </label>
+            </div>
+        </div>
+        <div class="control icon-text has-icons-left is-justify-content-center"> 
+            <button class="button is-primary pl-3" type="submit">
+                <span class="fas fa-file-medical-alt has-text-white mr-2"></span>
+                <span>TF-IDF値を算出する</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if tfidf_table %}
+<div class="table-container mt-4">
+    {{ tfidf_table|safe }}
+</div>
+{% endif %}
+
+<script>
+    const fileInput = document.querySelector('#choose-file input[type=file]');
+    fileInput.onchange = () => {
+        const fileName = document.querySelector('#choose-file .file-name');
+        if (fileInput.files.length > 0) {
+            fileName.textContent = fileInput.files[0].name;
+            fileName.classList.remove("has-text-grey");
+        } else {
+            fileName.textContent = "(未選択)";
+            fileName.classList.add("has-text-grey");
+        }
+    }
+</script>
+{% endblock %}

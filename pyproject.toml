@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "advanced"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fastapi = {extras = ["all"], version = "^0.65.1"}
+numpy = "^1.20.3"
+scikit-learn = "^0.24.2"
+mecab-python3 = "^1.0.3"
+pandas = "^1.2.4"
+gunicorn = "^20.1.0"
+deta = "^1.0"
+python-dotenv = "^0.18.0"
+
+[tool.poetry.dev-dependencies]
+black = {version = "^21.6b0", allow-prereleases = true}
+flake8 = "^3.9.2"
+mypy = "^0.910"
+types-aiofiles = "^0.1.5"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

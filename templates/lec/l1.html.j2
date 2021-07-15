@@ -1,0 +1,24 @@
+{% extends "lec/layout.html.j2" %}
+{% block box %}
+<div class="block">
+    <form class="field are-medium is-justify-content-center">
+        <div class="control has-icons-left mb-4">
+            <input class="input" type="text" name="staff" placeholder="e.g. 順次郎">
+            <span class="icon is-left">
+                <span class="far fa-user"></span>
+            </span>
+        </div>
+        <div class="control icon-text has-icons-left is-justify-content-center"> 
+            <button class="button is-primary pl-3" type="submit">
+                <span class="fas fa-search has-text-white mr-2"></span>
+                <span>検索する</span>
+            </button>
+        </div>
+    </form>
+</div>
+{% if notification_style and answer %}
+<div class="notification {{ notification_style }}">
+    <p class="content is-large is-flex is-justify-content-center my-0"><strong>{{ answer }}</strong></p>
+</div>
+{% endif %}
+{% endblock %}

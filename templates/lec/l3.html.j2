@@ -1,0 +1,36 @@
+{% extends "lec/layout.html.j2" %}
+{% block box %}
+<div class="block">
+    <form class="field are-medium is-justify-content-center">
+        <div class="control has-icons-left mb-4">
+            <input class="input" type="text" name="qword" placeholder="e.g. 走れ" required>
+            <span class="icon is-left">
+                <span class="fas fa-font"></span>
+            </span>
+        </div>
+        <div class="control icon-text has-icons-left is-justify-content-center"> 
+            <button class="button is-primary pl-3" type="submit">
+                <span class="fas fa-file-medical-alt has-text-white mr-2"></span>
+                <span>類似度を計算する</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if qword %}
+<div class="content">
+    <blockquote><em>{{ qword }}</em></blockquote>
+</div>
+{% endif %}
+{% if notification_style %}
+<div class="notification {{ notification_style }}">
+    <p class="is-flex is-justify-content-center my-0">{{ notification_msg }}</p>
+</div>
+{% endif %}
+{% if simil_table %}
+<div class="table-container mt-4">
+    {{ simil_table|safe }}
+</div>
+{% endif %}
+
+{% endblock %}

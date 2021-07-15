@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    {% include "head.html.j2" %}
+</head>
+<body>
+    <div class="container">
+        <section class="section">
+            <h1 class="title">{{ title }}</h1>
+            <h2 class="subtitle">{{ subtitle }}</h2>
+        </section>
+        <div class="box">
+            {% block box %}{% endblock %}
+        </div>
+    </div>
+</body>
+</html>
