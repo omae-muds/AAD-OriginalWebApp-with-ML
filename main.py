@@ -86,13 +86,14 @@ async def post_l2(request: Request, file: UploadFile = File(...)):
     async for b in read_preprocessed_txt_or_deta(filename=file.filename, file=file):
         bstr += b
     preprocessed = bstr.decode("utf-8")
-    # TODO Let's comparing with default docs
-    corpus = [preprocessed, "affect hello 走れ"]
-    index = [file.filename, "B"]
+
+    index = [file.filename, *DEFAULT_DOCS]
+    corpus = [preprocessed, *await default_docs_corpus()]
     df = Tfidf.tfidf_dataframe(index=index, corpus=corpus)
     table_style = ["table", "is-striped", "is-bordered"]
     table = df.to_html(border=0, classes=table_style)
 
+    # change the color of row that is uploaded by user
     esc_fname = file.filename.replace(".", r"\.")
     p = fr"<tr>\s+(?=<th>{esc_fname})"  # `(?=...)` is lookahead assertion.
     tr_style = '<tr class="is-selected">'
