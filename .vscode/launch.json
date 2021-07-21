@@ -15,7 +15,19 @@
             "name": "FastAPI",
             "type": "python",
             "request": "launch",
-            // "justMyCode": false,
+            "module": "uvicorn",
+            "args": [
+                "main:app",
+                "--port",
+                "9000"
+            ],
+            "jinja": true
+        },
+        {
+            "name": "FastAPI: justMyCode==False",
+            "type": "python",
+            "request": "launch",
+            "justMyCode": false,
             "module": "uvicorn",
             "args": [
                 "main:app",
