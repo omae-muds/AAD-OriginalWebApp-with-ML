@@ -60,7 +60,7 @@ class Wakatu:
         """
         # Unidic style
         wclass_allowlist = ["名詞", "動詞", "形容詞"]
-        wsubclass_denylist = ["数", "非自立可能", "接尾"]
+        wsubclass_denylist = ["数詞", "非自立可能", "接尾"]
 
         stopwords = cls._dl_stopwords()
 
