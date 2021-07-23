@@ -1,7 +1,7 @@
 import re
 import urllib.request
 from functools import lru_cache
-from typing import Final, List
+from typing import List
 
 import MeCab
 
@@ -42,9 +42,7 @@ class Wakatu:
     """MeCab-Python3 wrapper"""
 
     # SlothLib's list of Japanese stop words.
-    STOPWORDS_URL: Final[
-        str
-    ] = "http://svn.sourceforge.jp/svnroot/slothlib/CSharp/Version1/SlothLib/NLP/Filter/StopWord/word/Japanese.txt"
+    STOPWORDS_URL = "http://svn.sourceforge.jp/svnroot/slothlib/CSharp/Version1/SlothLib/NLP/Filter/StopWord/word/Japanese.txt"
 
     _mtagger = MeCab.Tagger()
 
