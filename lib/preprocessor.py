@@ -7,7 +7,6 @@ from typing import List
 import cv2
 import MeCab
 import numpy as np
-from PIL import Image, ImageOps
 
 
 class Aozora:
