@@ -15,3 +15,4 @@ class Settings(BaseSettings):
     deta_drive_img_prefix: str = "img/"
 
     deta_base: str = "aad"
+    deta_base_features: str = "aad-features"

@@ -1,9 +1,13 @@
+import io
 import re
 import urllib.request
 from functools import lru_cache
 from typing import List
 
+import cv2
 import MeCab
+import numpy as np
+from PIL import Image, ImageOps
 
 
 class Aozora:
@@ -94,3 +98,19 @@ class Wakatu:
         with urllib.request.urlopen(cls.STOPWORDS_URL) as f:
             raw: str = f.read().decode("utf-8")
         return raw.splitlines()
+
+
+class ImgNormalizer:
+    # When split resize and equalize func, program should de/encode each time.
+    @staticmethod
+    def resize_and_equalize_hist(bimg: bytes, w: int = 256, h: int = 256) -> bytes:
+        img = cv2.imdecode(np.frombuffer(bimg, np.uint8), cv2.IMREAD_COLOR)
+
+        img = cv2.resize(img, (w, h))
+
+        yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+        yuv[:, :, 0] = cv2.equalizeHist(yuv[:, :, 0])
+        img = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
+
+        _, buf = cv2.imencode(".png", img)
+        return buf.tobytes()

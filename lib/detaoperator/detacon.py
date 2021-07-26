@@ -49,3 +49,9 @@ class DetaController:
         last: Optional[int] = None,
     ) -> FetchResponse:
         return cls.base.fetch(query=query, limit=limit, last=last)
+
+    # FIXME
+    @classmethod
+    def base_put_features(cls, key: str, data: Dict):
+        base = cls._deta.Base(cls._settings.deta_base_features)
+        return base.put(key=key, data=data)

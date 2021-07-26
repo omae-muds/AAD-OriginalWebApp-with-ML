@@ -7,16 +7,16 @@ import asyncio
 import hashlib
 import io
 from datetime import datetime
-from typing import AsyncGenerator, AsyncIterator, Final, Literal, Optional, Union
+from typing import Any, AsyncGenerator, AsyncIterator, Dict, Final, List, Literal, Optional, Union
 
 from fastapi import UploadFile
 from pydantic import BaseModel, validator
 
 from ..config import Settings
-from ..preprocessor import Aozora, Wakatu
+from ..preprocessor import Aozora, ImgNormalizer, Wakatu
 from . import detacon
 
-ASLEEP_TIME: Final[float] = 0.001
+ASLEEP_SECOND: Final[float] = 0.001
 DEFAULT_CHUNK_SIZE: Final[int] = 4096
 
 
@@ -64,28 +64,54 @@ async def file_hash_generator(
     ```python
     it = file_hash_generator()
     # once, iterate
-    next(it)
+    await it.__anext__()
     # pass the init chunk
-    it.send(init_chunk)
+    await it.asend(init_chunk)
     ...
     ```
     """
     sha1 = hashlib.sha1()
 
     if init_chunk is None:
-        # set `init_chunk` by `send()` after just a once iterate
+        # set `init_chunk` by `asend()` after just a once iterate
         init_chunk = yield "set `init_chunk` by `send(INIT_CHUNK)`"
     chunk = init_chunk
     while chunk:
         sha1.update(chunk)
-        chunk = yield sha1.hexdigest()
-        await asyncio.sleep(ASLEEP_TIME)
+        chunk = yield sha1.hexdigest()  # FIXME Overhead; called by each iteration.
+        await asyncio.sleep(ASLEEP_SECOND)
 
 
 def get_from_base(key: str) -> Union[DetaBaseItem, None]:
     if record := detacon.DetaController.base_get(key=key):
         return DetaBaseItem(**record)
     return None
+
+
+def query_base(
+    query: Union[Dict[str, Any], List[Dict[str, Any]]]
+) -> Union[List[DetaBaseItem], None]:
+    res = detacon.DetaController.base_fetch(query)
+
+    if not res.items:
+        return None
+
+    resi: List[Dict[str, Any]] = res.items
+    while res.last:  # turn over the pages
+        resi += detacon.DetaController.base.fetch(last=res.last).items
+
+    return [DetaBaseItem(**i) for i in resi]
+
+
+def query_one_base(
+    query: Union[Dict[str, Any], List[Dict[str, Any]]]
+) -> Union[DetaBaseItem, None]:
+    res = detacon.DetaController.base_fetch(query, limit=1)
+
+    if not res.items:
+        return None
+
+    return DetaBaseItem(**res.items[0])
 
 
 async def read_from_drive(
@@ -95,7 +121,7 @@ async def read_from_drive(
         try:
             while chunk := file.read(chunk_size if chunk_size > 0 else None):
                 yield chunk
-                await asyncio.sleep(ASLEEP_TIME)
+                await asyncio.sleep(ASLEEP_SECOND)
         finally:
             file.close()
     else:
@@ -103,9 +129,9 @@ async def read_from_drive(
 
 
 # Main
-async def read_preprocessed_txt_or_deta(
-    filename: str,
+async def read_preprocessed_or_from_deta(
     file: UploadFile,
+    file_type: Literal["text", "image"],
     chunk_size: Union[int, Literal[1024, 2048, 4096]] = DEFAULT_CHUNK_SIZE,
 ) -> AsyncIterator[bytes]:
     """
@@ -116,7 +142,7 @@ async def read_preprocessed_txt_or_deta(
     raw_bytes = b""
 
     gen = file_hash_generator()
-    await gen.__anext__()  # Prepare for `send(init_chunk)`
+    await gen.__anext__()  # Prepare for `asend(init_chunk)`
 
     while chunk := await file.read(chunk_size):
         if isinstance(chunk, str):
@@ -129,22 +155,34 @@ async def read_preprocessed_txt_or_deta(
             yield chunk
     else:
         # NOTE The following are hookable?
+        if file_type == "text":
+            # Because Aozora-Bunko exports files with Shift-JIS.
+            raw = raw_bytes.decode("shift-jis")
+            parsed = Wakatu.parse_only_nouns_verbs_adjectives(Aozora.cleansing(raw))
+            preprocessed_bytes = parsed.encode("utf-8")
 
-        # Because Aozora-Bunko exports files with Shift-JIS.
-        raw = str(raw_bytes, "shift-jis")
-        cleansed = Aozora.cleansing(raw)
-        parsed = Wakatu.parse_only_nouns_verbs_adjectives(cleansed)
-        bparsed = parsed.encode("utf-8")
+            path_on_drive = Settings().deta_drive_txt_prefix + key
+        elif file_type == "image":
+            preprocessed_bytes = ImgNormalizer.resize_and_equalize_hist(raw_bytes)
+            path_on_drive = Settings().deta_drive_img_prefix + key
 
-        path_on_drive = Settings().deta_drive_txt_prefix + key
+            # Backgroud/Parallel 3
+            detacon.DetaController.drive_put(name="raw" + path_on_drive, data=raw_bytes)
+
         # TODO Backgroud/Parallel
         # Backgroud/Parallel 1
-        item = DetaBaseItem(key=key, ts=None, original_fname=filename, path_on_drive=path_on_drive)
-        detacon.DetaController.base_put(item)
+        detacon.DetaController.base_put(
+            DetaBaseItem(
+                key=key,
+                ts=None,
+                original_fname=file.filename,
+                path_on_drive=path_on_drive,
+            )
+        )
         # Backgroud/Parallel 2
-        detacon.DetaController.drive_put(name=path_on_drive, data=bparsed)
+        detacon.DetaController.drive_put(name=path_on_drive, data=preprocessed_bytes)
 
-        with io.BytesIO(bparsed) as bio:
+        with io.BytesIO(preprocessed_bytes) as bio:
             while chunk := bio.read(chunk_size):
                 yield chunk
-                await asyncio.sleep(ASLEEP_TIME)
+                await asyncio.sleep(ASLEEP_SECOND)

@@ -1,0 +1,105 @@
+{% extends "lec/layout.html.j2" %}
+{% block box %}
+<div class="block">
+    <form class="field are-medium is-justify-content-center" method="POST" enctype="multipart/form-data">
+        <div class="control mb-4">
+            <div id="choose-file" class="file has-name is-fullwidth">
+                <label class="file-label">
+                    <input class="file-input" type="file" accept="image/*" name="file" required>
+                    <span class="file-cta">
+                        <span class="file-icon">
+                            <span class="fas fa-upload"></span>
+                        </span>
+                        <span class="file-label">
+                            画像ファイル...
+                        </span>
+                    </span>
+                    <span class="file-name is-right has-text-grey">
+                        (未選択)
+                    </span>
+                </label>
+            </div>
+        </div>
+        <div class="control icon-text has-icons-left is-justify-content-center"> 
+            <button class="button is-primary pl-3" type="submit">
+                <span class="fas fa-file-medical-alt has-text-white mr-2"></span>
+                <span>画像を送信&前処理</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if imagename and features %}
+<section class="section">
+    <div class="container">
+        <h3>Akaze (256x256)</h3>
+        <figure class="image mb-2">
+            <img src="/srvimg?q={{ imagename }}&its=akaze" style="object-fit: contain; max-height: 50vh; min-width: 256px;">
+        </figure>
+        
+        <h4>keypoints & descriptors</h4>
+        <div class="table-container mb-4" style="max-height: calc(50vh); overflow: scroll;">
+            <table class="table is-narrow is-striped">
+                <thead>
+                    <tr>
+                        <th>
+                            <abbr title="the response by which the most strong keypoints have been selected. Can be used for the further sorting or subsampling">
+                                kp.response
+                            </abbr>
+                        </th>
+                        <th>kp.pt</th>
+                        <th>
+                            <abbr title="diameter of the meaningful keypoint neighborhood">
+                                kp.size
+                            </abbr>
+                        </th>
+                        <th>kp.angle</th>
+                        <th>desc</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kp, desc in features %}
+                    <tr>
+                        <td>{{ kp.response }}</td>
+                        <td>{{ kp.pt }}</td>
+                        <td>{{ kp.size }}</td>
+                        <td>{{ kp.angle }}</td>
+                        <td style="min-width: 40rem;">{{ desc }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="columns">
+        <div class="column is-two-thirds">
+            <h4>Original</h4>
+            <figure class="image">
+                <img src="/srvimg?q={{ imagename }}&its=raw" style="object-fit: scale-down; object-position: left top;">
+            </figure>
+        </div>
+        <div class="column">
+            <h4>Preprocessed</h4>
+            <figure class="image">
+                <img src="/srvimg?q={{ imagename }}" style="object-fit: scale-down; object-position: left top;">
+            </figure>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<script>
+    const fileInput = document.querySelector('#choose-file input[type=file]');
+    fileInput.onchange = () => {
+        const fileName = document.querySelector('#choose-file .file-name');
+        if (fileInput.files.length > 0) {
+            fileName.textContent = fileInput.files[0].name;
+            fileName.classList.remove("has-text-grey");
+        } else {
+            fileName.textContent = "(未選択)";
+            fileName.classList.add("has-text-grey");
+        }
+    }
+</script>
+{% endblock %}

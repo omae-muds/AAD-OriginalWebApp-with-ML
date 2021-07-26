@@ -1,3 +1,4 @@
+import io
 import re
 import time
 from functools import lru_cache
@@ -5,23 +6,27 @@ from pathlib import Path
 from typing import Any, Dict, Final, List, Optional
 
 import aiofiles
+import jinja2
 
 # from fastapi.staticfiles import StaticFiles
-from fastapi import Depends, FastAPI, File, Request, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 import nlp_wrapper
-from lib import detaoperator
-from lib.detaoperator import DetaBaseItem, read_preprocessed_txt_or_deta
+from lib import detaoperator, imgps
+from lib.detaoperator import DetaBaseItem, detacon, read_preprocessed_or_from_deta
 from lib.detaoperator.detacon import DetaController
 from lib.nlp import Similarity, Tfidf
+from lib.preprocessor import ImgNormalizer
 
 # from lib.preprocessor import Wakatu
 
 DATA: Final[Path] = Path("data/")
 TXT_SAVED: Final[Path] = Path("data/tmp/")
 
+env = jinja2.Environment()
+env.globals.update(zip=zip)
 
 app = FastAPI()
 
@@ -82,10 +87,10 @@ async def l2(request: Request):
 @app.post("/l2", response_class=HTMLResponse)
 async def post_l2(request: Request, file: UploadFile = File(...)):
     print("START:", start := time.time(), sep="\t")
-    bstr = b""
-    async for b in read_preprocessed_txt_or_deta(filename=file.filename, file=file):
-        bstr += b
-    preprocessed = bstr.decode("utf-8")
+    b = b""
+    async for b in read_preprocessed_or_from_deta(file=file, file_type="text"):
+        b += b
+    preprocessed = b.decode("utf-8")
 
     index = [file.filename, *DEFAULT_DOCS]
     corpus = [preprocessed, *await default_docs_corpus()]
@@ -167,3 +172,65 @@ async def l3(request: Request, qword: Optional[str] = None):
         "simil_table": table,
     }
     return templates.TemplateResponse("./lec/l3.html.j2", context=context)
+
+
+@app.get("/l4", response_class=HTMLResponse)
+async def l4(request: Request):
+    return templates.TemplateResponse(
+        "lec/l4.html.j2",
+        context={
+            "request": request,
+            "title": "Lec04",
+            "subtitle": "画像をアップロードする",
+        },
+    )
+
+
+@app.post("/l4", response_class=HTMLResponse)
+async def l4_post(request: Request, file: UploadFile = File(...)):
+    imagename = file.filename
+    bimg = b""
+    async for chunk in detaoperator.read_preprocessed_or_from_deta(file=file, file_type="image"):
+        bimg += chunk
+
+    (kp, desc), kpimg = imgps.akaze(bimg, draw=True)
+
+    kp = [{"response": k.response, "pt": k.pt, "size": k.size, "angle": k.angle} for k in kp]
+    features = list(zip(sorted(kp, key=lambda x: x["response"], reverse=True), desc.tolist()))
+    # save to Drive; `akazeimg/hash...`
+    item = detaoperator.query_one_base({"original_fname": imagename})
+    if item is None or kpimg is None:
+        return HTTPException(status_code=404)
+    detacon.DetaController.drive_put(name="akaze" + item.path_on_drive, data=kpimg)
+    # save to Base; `aad-features`
+    detacon.DetaController.base_put_features(imagename, {"hash": item.key, "features": features})
+
+    return templates.TemplateResponse(
+        "lec/l4.html.j2",
+        context={
+            "request": request,
+            "title": "Lec04",
+            "subtitle": "画像をアップロードする",
+            "features": features,
+            "imagename": imagename,
+        },
+    )
+
+
+@app.get("/srvimg", response_class=StreamingResponse)
+async def srvimg(q: str, its: Optional[str] = None):
+    # search key by fname
+    item = detaoperator.query_one_base(query={"original_fname": q})
+    if item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    imgtypes = {"raw": "raw", "akaze": "akaze"}
+    if its in imgtypes:
+        path = imgtypes[its] + item.path_on_drive
+    else:
+        path = item.path_on_drive
+
+    b = b""
+    async for chunk in detaoperator.read_from_drive(path):
+        b += chunk
+    return StreamingResponse(io.BytesIO(b))
