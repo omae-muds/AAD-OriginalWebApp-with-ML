@@ -1,25 +1,22 @@
 import io
 import re
-import time
+import uuid
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Final, List, Optional, Union
 
 import aiofiles
+import cv2
 
 # from fastapi.staticfiles import StaticFiles
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from starlette.responses import RedirectResponse
 
 import nlp_wrapper
 from lib import detaoperator, imgps
-from lib.detaoperator import DetaBaseItem, detacon, read_preprocessed_or_from_deta
-from lib.detaoperator.detacon import DetaController
+from lib.detaoperator import DetaBaseItem, read_preprocessed_or_from_deta
 from lib.nlp import Tfidf
-
-# from lib.preprocessor import Wakatu
 
 DATA: Final[Path] = Path("data/")
 TXT_SAVED: Final[Path] = Path("data/tmp/")
@@ -181,7 +178,7 @@ async def l4(request: Request):
 async def l4_post(request: Request, file: UploadFile = File(...)):
     imagename = file.filename
     # bimg = b""
-    async for chunk in detaoperator.read_preprocessed_or_from_deta(file=file, file_type="image"):
+    async for chunk in read_preprocessed_or_from_deta(file=file, file_type="image"):
         # bimg += chunk
         _ = ""
 
@@ -276,19 +273,23 @@ async def storage(
                     viewtxt = b.decode("shift-jis")
 
                     msg = None
+
     comp_table = None
+    comp_imgname = None
     if targets:
         if act == "comp":
+            if prefix in ["img", "rawimg"]:
+                targets = targets[:2]
 
             items = [detaoperator.get_from_base(target) for target in targets]
             paths: List[str] = []
-            index: List[str] = []
+            org_fnames: List[str] = []
             for i in items:
                 if i is None:
                     raise HTTPException(404, "Baseに登録されていないデータ要求")
                 if prefix in ["img", "txt"]:
                     paths.append(i.preprocessed_path)
-                    index.append(i.original_fname)
+                    org_fnames.append(i.original_fname)
                 elif prefix == "rawimg":
                     if d := i.other_files:
                         paths.append(d["raw"])
@@ -298,17 +299,27 @@ async def storage(
                     raise HTTPException(502)
 
             corpus: List[str] = []
+            bimgs: List[bytes] = []
             for path in paths:
                 b = b""
                 async for b in detaoperator.read_from_drive(path):
                     b += b
                 if prefix == "txt":
                     corpus.append(b.decode("shift-jis"))
+                elif prefix in ["img", "rawimg"]:
+                    bimgs.append(b)
 
-            df = Tfidf.tfidf_dataframe(
-                index=[t + f" ({i})" for t, i in zip(targets, index)], corpus=corpus
-            )
-            comp_table = df.to_html(border=0, classes=["table", "is-striped", "is-bordered"])
+            if prefix == "txt":
+                df = Tfidf.tfidf_dataframe(
+                    index=[t + f" ({n})" for t, n in zip(targets, org_fnames)], corpus=corpus
+                )
+                comp_table = df.to_html(border=0, classes=["table", "is-striped", "is-bordered"])
+            elif prefix in ["img", "rawimg"]:
+                ((kp1, desc1), (kp2, desc2), matches), akazeimg = imgps.akaze_compe(
+                    bimgs[0], bimgs[1], draw=True
+                )
+                comp_imgname = f"data/tmp/{uuid.uuid4()}.png"
+                cv2.imwrite(comp_imgname, akazeimg)
 
         elif act == "del":
             failfiles = detaoperator.remove_files(targets)
@@ -342,6 +353,7 @@ async def storage(
             "viewtxt": viewtxt,
             "msg": msg,
             "comp_table": comp_table,
+            "comp_imgname": comp_imgname,
             "files": files,
         },
     )

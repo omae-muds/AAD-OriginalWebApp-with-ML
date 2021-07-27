@@ -39,6 +39,13 @@
             </div>
             {% endif %}
 
+            {% if comp_imgname %}
+            <h3>Result Image</h3>
+            <figure class="image mb-2">
+                <img src="{{ comp_imgname }}" style="object-fit: contain; max-height: 50vh; min-width: 256px;">
+            </figure>
+            {% endif %}
+
             <form class="field" method="GET">
                 <style>
                     nav.panel > * {
