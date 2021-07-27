@@ -31,6 +31,14 @@
             </div>
             {% endif %}
 
+            {% if comp_table %}
+            <div class="block">
+                <div class="table-container">
+                    {{ comp_table|safe }}
+                </div>
+            </div>
+            {% endif %}
+
             <form class="field" method="GET">
                 <style>
                     nav.panel > * {
@@ -77,7 +85,11 @@
                     <div class="panel-block is-justify-content-center">
                         <div class="columns" style="min-width: 100%;">
                             <div class="column is-one-twice">
+                                {% if prefix in ["txt", "img", "rawimg"] %}
                                 <button class="button is-link is-fullwidth" name="act" value="comp">
+                                {% else %}
+                                <button class="button is-link is-fullwidth is-invisible" name="act" value="comp">
+                                {% endif %}
                                     Compare
                                 </button>
                             </div>

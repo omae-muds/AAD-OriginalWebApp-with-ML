@@ -11,6 +11,7 @@ import aiofiles
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from starlette.responses import RedirectResponse
 
 import nlp_wrapper
 from lib import detaoperator, imgps
@@ -82,7 +83,6 @@ async def l2(request: Request):
 
 @app.post("/l2", response_class=HTMLResponse)
 async def post_l2(request: Request, file: UploadFile = File(...)):
-    print("START:", start := time.time(), sep="\t")
     b = b""
     async for b in read_preprocessed_or_from_deta(file=file, file_type="text"):
         b += b
@@ -106,8 +106,6 @@ async def post_l2(request: Request, file: UploadFile = File(...)):
         "subtitle": "アップロードされたファイルどうしのTF-IDF値を算出する",
         "tfidf_table": table,
     }
-    print("END:", end := time.time(), sep="\t")
-    print("ELAPSED:", end - start, sep="\t")
     return templates.TemplateResponse("./lec/l2.html.j2", context=context)
 
 
@@ -122,13 +120,6 @@ async def default_docs_corpus():
         res = detaoperator.query_base(query=q)
         if res:
             items += res
-
-        # res = DetaController.base_fetch(query=q)
-        # resi: List[Dict[str, Any]] = res.items
-        # while res.last:  # turn over the pages
-        #     resi += DetaController.base.fetch(last=res.last).items
-
-        # items += [DetaBaseItem(**i) for i in resi]
 
     corpus: List[str] = []
     for i in items:
@@ -285,10 +276,40 @@ async def storage(
                     viewtxt = b.decode("shift-jis")
 
                     msg = None
-
+    comp_table = None
     if targets:
         if act == "comp":
-            ...
+
+            items = [detaoperator.get_from_base(target) for target in targets]
+            paths: List[str] = []
+            index: List[str] = []
+            for i in items:
+                if i is None:
+                    raise HTTPException(404, "Baseに登録されていないデータ要求")
+                if prefix in ["img", "txt"]:
+                    paths.append(i.preprocessed_path)
+                    index.append(i.original_fname)
+                elif prefix == "rawimg":
+                    if d := i.other_files:
+                        paths.append(d["raw"])
+                    else:
+                        raise HTTPException(404, "関連ファイルの記録がない")
+                else:
+                    raise HTTPException(502)
+
+            corpus: List[str] = []
+            for path in paths:
+                b = b""
+                async for b in detaoperator.read_from_drive(path):
+                    b += b
+                if prefix == "txt":
+                    corpus.append(b.decode("shift-jis"))
+
+            df = Tfidf.tfidf_dataframe(
+                index=[t + f" ({i})" for t, i in zip(targets, index)], corpus=corpus
+            )
+            comp_table = df.to_html(border=0, classes=["table", "is-striped", "is-bordered"])
+
         elif act == "del":
             failfiles = detaoperator.remove_files(targets)
             if failfiles:
@@ -320,6 +341,7 @@ async def storage(
             "view": view,
             "viewtxt": viewtxt,
             "msg": msg,
+            "comp_table": comp_table,
             "files": files,
         },
     )
