@@ -34,7 +34,7 @@
     <div class="container">
         <h3>Akaze (256x256)</h3>
         <figure class="image mb-2">
-            <img src="/srvimg?q={{ imagename }}&its=akaze" style="object-fit: contain; max-height: 50vh; min-width: 256px;">
+            <img src="/srv?q={{ imagename }}&its=akazeimg" style="object-fit: contain; max-height: 50vh; min-width: 256px;">
         </figure>
         
         <h4>keypoints & descriptors</h4>
@@ -58,13 +58,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for kp, desc in features %}
+                    {% for d in features %}
                     <tr>
-                        <td>{{ kp.response }}</td>
-                        <td>{{ kp.pt }}</td>
-                        <td>{{ kp.size }}</td>
-                        <td>{{ kp.angle }}</td>
-                        <td style="min-width: 40rem;">{{ desc }}</td>
+                        <td>{{ d.kp.response }}</td>
+                        <td>{{ d.kp.pt }}</td>
+                        <td>{{ d.kp.size }}</td>
+                        <td>{{ d.kp.angle }}</td>
+                        <td style="min-width: 40rem;">{{ d.desc }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -76,13 +76,13 @@
         <div class="column is-two-thirds">
             <h4>Original</h4>
             <figure class="image">
-                <img src="/srvimg?q={{ imagename }}&its=raw" style="object-fit: scale-down; object-position: left top;">
+                <img src="/srv?q={{ imagename }}&its=rawimg" style="object-fit: scale-down; object-position: left top;">
             </figure>
         </div>
         <div class="column">
             <h4>Preprocessed</h4>
             <figure class="image">
-                <img src="/srvimg?q={{ imagename }}" style="object-fit: scale-down; object-position: left top;">
+                <img src="/srv?q={{ imagename }}&its=img" style="object-fit: scale-down; object-position: left top;">
             </figure>
         </div>
     </div>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    {% include "head.html.j2" %}
+</head>
+
+<body>
+    <div class="container">
+        <section class="section">
+            <h1 class="title">Storage</h1>
+            <h2 class="subtitle">View Deta Drive...</h2>
+        </section>
+        <div class="box">
+            {% if msg %}
+            <div class="notification is-warning">
+                <p class="is-flex is-justify-content-center">{{ msg|safe }}</p>
+            </div>
+            {% endif %}
+
+            {% if view %}
+            <div class="block">
+                <h3 style="word-break: break-all;">File: {{ view }}</h3>
+                {% if prefix in ["txt", "rawtxt"] %}
+                <p style="overflow: scroll; max-height: 50vh;">{{ viewtxt }}</p>
+                {% else %}
+                <figure class="image">
+                    <img src="/srv?q={{ view }}&its={{ prefix }}&useKey=on" style="object-fit: contain; max-height: 50vh;">
+                </figure>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <form class="field" method="GET">
+                <style>
+                    nav.panel > * {
+                        word-break: break-word;
+                    }
+                </style>
+                <nav class="panel">
+                    <p class="panel-heading">
+                        Deta Drive
+                        {% if prefix %}
+                        ({{ prefix }})
+                        {% endif %}
+                    </p>
+
+                    {% for dir in dirs %}
+                    <a class="panel-block" href="/storage/{{ dir }}">
+                        <span class="panel-icon">
+                            <span class="fas fa-folder"></span>
+                        </span>
+                        {{ dir }}
+                    </a>
+                    {% endfor %}
+
+                    {% if files %}
+                    {% for file in files %}
+
+                    {% if file.name == view %}
+                    <a class="panel-block is-active" href="?view={{ file.name }}">
+                    {% else %}
+                    <a class="panel-block" href="?view={{ file.name }}">
+                    {% endif %}
+
+                        <input type="checkbox" name="targets" value="{{ file.name }}">
+                        <span class="panel-icon">
+                            <span class="far fa-file-alt"></span>
+                        </span>
+                        {{ file.name }}
+                        {% if file.description %}
+                        <span class="ml-4 has-text-weight-light">{{ file.description }}</span>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+
+                    <div class="panel-block is-justify-content-center">
+                        <div class="columns" style="min-width: 100%;">
+                            <div class="column is-one-twice">
+                                <button class="button is-link is-fullwidth" name="act" value="comp">
+                                    Compare
+                                </button>
+                            </div>
+                            <div class="column">
+                                <button class="button is-danger is-outlined is-fullwidth" name="act" value="del">
+                                    Delete ALL
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </nav>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>

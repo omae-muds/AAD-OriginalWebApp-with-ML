@@ -3,13 +3,12 @@ import re
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Final, List, Optional
+from typing import Any, Dict, Final, List, Optional, Union
 
 import aiofiles
-import jinja2
 
 # from fastapi.staticfiles import StaticFiles
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
@@ -17,16 +16,13 @@ import nlp_wrapper
 from lib import detaoperator, imgps
 from lib.detaoperator import DetaBaseItem, detacon, read_preprocessed_or_from_deta
 from lib.detaoperator.detacon import DetaController
-from lib.nlp import Similarity, Tfidf
-from lib.preprocessor import ImgNormalizer
+from lib.nlp import Tfidf
 
 # from lib.preprocessor import Wakatu
 
 DATA: Final[Path] = Path("data/")
 TXT_SAVED: Final[Path] = Path("data/tmp/")
 
-env = jinja2.Environment()
-env.globals.update(zip=zip)
 
 app = FastAPI()
 
@@ -90,7 +86,7 @@ async def post_l2(request: Request, file: UploadFile = File(...)):
     b = b""
     async for b in read_preprocessed_or_from_deta(file=file, file_type="text"):
         b += b
-    preprocessed = b.decode("utf-8")
+    preprocessed = b.decode("shift-jis")
 
     index = [file.filename, *DEFAULT_DOCS]
     corpus = [preprocessed, *await default_docs_corpus()]
@@ -123,19 +119,23 @@ async def default_docs_corpus():
     for fname in DEFAULT_DOCS:
         q = {"original_fname": fname}
 
-        res = DetaController.base_fetch(query=q)
-        resi: List[Dict[str, Any]] = res.items
-        while res.last:  # turn over the pages
-            resi += DetaController.base.fetch(last=res.last).items
+        res = detaoperator.query_base(query=q)
+        if res:
+            items += res
 
-        items += [DetaBaseItem(**i) for i in resi]
+        # res = DetaController.base_fetch(query=q)
+        # resi: List[Dict[str, Any]] = res.items
+        # while res.last:  # turn over the pages
+        #     resi += DetaController.base.fetch(last=res.last).items
+
+        # items += [DetaBaseItem(**i) for i in resi]
 
     corpus: List[str] = []
     for i in items:
         b = b""
-        async for c in detaoperator.read_from_drive(i.path_on_drive, chunk_size=4096):
+        async for c in detaoperator.read_from_drive(i.preprocessed_path, chunk_size=4096):
             b += c
-        corpus.append(b.decode("utf-8"))
+        corpus.append(b.decode("shift-jis"))
     return corpus
 
 
@@ -189,21 +189,16 @@ async def l4(request: Request):
 @app.post("/l4", response_class=HTMLResponse)
 async def l4_post(request: Request, file: UploadFile = File(...)):
     imagename = file.filename
-    bimg = b""
+    # bimg = b""
     async for chunk in detaoperator.read_preprocessed_or_from_deta(file=file, file_type="image"):
-        bimg += chunk
+        # bimg += chunk
+        _ = ""
 
-    (kp, desc), kpimg = imgps.akaze(bimg, draw=True)
-
-    kp = [{"response": k.response, "pt": k.pt, "size": k.size, "angle": k.angle} for k in kp]
-    features = list(zip(sorted(kp, key=lambda x: x["response"], reverse=True), desc.tolist()))
-    # save to Drive; `akazeimg/hash...`
     item = detaoperator.query_one_base({"original_fname": imagename})
-    if item is None or kpimg is None:
-        return HTTPException(status_code=404)
-    detacon.DetaController.drive_put(name="akaze" + item.path_on_drive, data=kpimg)
-    # save to Base; `aad-features`
-    detacon.DetaController.base_put_features(imagename, {"hash": item.key, "features": features})
+    if item is None:
+        raise HTTPException(status_code=404)
+    if d := item.other_data:
+        features = d["akaze_features"]
 
     return templates.TemplateResponse(
         "lec/l4.html.j2",
@@ -217,20 +212,114 @@ async def l4_post(request: Request, file: UploadFile = File(...)):
     )
 
 
-@app.get("/srvimg", response_class=StreamingResponse)
-async def srvimg(q: str, its: Optional[str] = None):
+@app.get("/srv", response_class=StreamingResponse)
+async def srv(q: str, its: Optional[str] = None, useKey: Optional[bool] = None):
     # search key by fname
-    item = detaoperator.query_one_base(query={"original_fname": q})
-    if item is None:
+    if useKey:
+        item = detaoperator.get_from_base(q)
+    else:
+        query = {"original_fname": q}
+        item = detaoperator.query_one_base(query)
+
+    if item is None or item.other_files is None:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    imgtypes = {"raw": "raw", "akaze": "akaze"}
-    if its in imgtypes:
-        path = imgtypes[its] + item.path_on_drive
-    else:
-        path = item.path_on_drive
+    if its == "rawimg":
+        path = item.other_files["raw"]
+        mtype = "image/*"
+    elif its == "akazeimg":
+        path = item.other_files["akaze"]
+        mtype = "image/*"
+    elif its == "img":
+        path = item.preprocessed_path
+        mtype = "image/*"
+    elif its in ["txt", "rawtxt"]:
+        path = its + "/" + item.preprocessed_path
+        mtype = "text/plain"
 
     b = b""
     async for chunk in detaoperator.read_from_drive(path):
         b += chunk
-    return StreamingResponse(io.BytesIO(b))
+
+    if its == "txt":
+        return StreamingResponse(b.decode("shift-jis"), media_type=mtype)
+
+    return StreamingResponse(io.BytesIO(b), media_type=mtype)
+
+
+@app.get("/storage", response_class=HTMLResponse)
+async def redirect_fastapi(request: Request):
+    dirs = ["akazeimg/", "img/", "rawimg/", "rawtxt/", "txt/"]
+    return templates.TemplateResponse(
+        "storage.html.j2",
+        context={"request": request, "dirs": dirs},
+    )
+
+
+@app.get("/storage/{prefix}", response_class=HTMLResponse)
+async def storage(
+    request: Request,
+    prefix: str,
+    view: Optional[str] = None,
+    targets: Optional[List[str]] = Query(None),
+    act: Optional[str] = None,
+):
+    msg: Union[str, None] = None
+
+    viewtxt: Optional[str] = None
+    if view:
+        if prefix in ["txt", "rawtxt"]:
+            msg = f"選択されたファイルがBase上に見つかりませんでした: key == {view}"
+            if item := detaoperator.get_from_base(view):
+                path: Optional[str] = None
+                if prefix == "txt":
+                    path = item.preprocessed_path
+                elif prefix == "rawtxt":
+                    if d := item.other_files:
+                        path = d["raw"]
+                if path:
+                    b = b""
+                    async for chunk in detaoperator.read_from_drive(path):
+                        b += chunk
+
+                    viewtxt = b.decode("shift-jis")
+
+                    msg = None
+
+    if targets:
+        if act == "comp":
+            ...
+        elif act == "del":
+            failfiles = detaoperator.remove_files(targets)
+            if failfiles:
+                msg = f"次のファイルは削除に失敗しました:<br>{failfiles}"
+
+    names = detaoperator.ls_drive(prefix)
+    files: Optional[List[Dict[str, str]]] = None
+    if names:
+        if prefix == "akazeimg":
+            delnum = len("akaze")
+        elif prefix == "rawimg" or prefix == "rawtxt":
+            delnum = len("raw")
+        else:
+            delnum = 0
+        items = [detaoperator.query_one_base({"preprocessed_path": n[delnum:]}) for n in names]
+        files = [
+            {
+                "name": name[len(prefix) + 1 :],
+                "description": item.original_fname if item is not None else "",
+            }
+            for name, item in zip(names, items)
+        ]
+
+    return templates.TemplateResponse(
+        "storage.html.j2",
+        context={
+            "request": request,
+            "prefix": prefix,
+            "view": view,
+            "viewtxt": viewtxt,
+            "msg": msg,
+            "files": files,
+        },
+    )

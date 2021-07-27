@@ -55,3 +55,21 @@ class DetaController:
     def base_put_features(cls, key: str, data: Dict):
         base = cls._deta.Base(cls._settings.deta_base_features)
         return base.put(key=key, data=data)
+
+    @classmethod
+    def list_drive(
+        cls, prefix: Optional[str] = None, last: Optional[Any] = None
+    ) -> Union[Dict[str, Any], Any, None]:
+        return cls.drive.list(prefix=prefix, last=last)
+
+    @classmethod
+    def base_del(cls, key: str) -> None:
+        cls.base.delete(key)
+
+    @classmethod
+    def drive_del(cls, name: str) -> str:
+        return cls.drive.delete(name)
+
+    @classmethod
+    def drive_delmany(cls, names: List[str]) -> Dict[str, Any]:
+        return cls.drive.delete_many(names)

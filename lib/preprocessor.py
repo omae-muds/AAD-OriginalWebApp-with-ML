@@ -77,7 +77,9 @@ class Wakatu:
             if features[0] in wclass_allowlist:
                 if features[1] not in wsubclass_denylist:
                     # Get original form
-                    if features[10] != "*":
+                    if len(features) < 10:
+                        term = node.surface.strip()
+                    elif features[10] != "*":
                         term = features[10].strip()
                     else:
                         term = node.surface.strip()

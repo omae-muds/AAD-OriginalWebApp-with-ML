@@ -12,6 +12,7 @@ from typing import Any, AsyncGenerator, AsyncIterator, Dict, Final, List, Litera
 from fastapi import UploadFile
 from pydantic import BaseModel, validator
 
+from .. import imgps
 from ..config import Settings
 from ..preprocessor import Aozora, ImgNormalizer, Wakatu
 from . import detacon
@@ -24,7 +25,9 @@ class DetaBaseItem(BaseModel):
     key: str
     ts: str
     original_fname: str
-    path_on_drive: str
+    preprocessed_path: str
+    other_files: Optional[Dict[str, str]] = None
+    other_data: Optional[Dict[str, Any]] = None
 
     @validator("key")
     def sha1_hash_like(cls, v):
@@ -40,7 +43,7 @@ class DetaBaseItem(BaseModel):
         """Force `%FT%T` format timestamp. `v` is ignored always."""
         return datetime.now().strftime("%FT%T")
 
-    @validator("path_on_drive")
+    @validator("preprocessed_path")
     def safe_path(cls, v):
         if not v:
             raise ValueError("must truthy")
@@ -114,6 +117,29 @@ def query_one_base(
     return DetaBaseItem(**res.items[0])
 
 
+def ls_drive(prefix: Optional[str] = None) -> Union[List[str], None]:
+    res = detacon.DetaController.list_drive(prefix)
+
+    if not isinstance(res, dict):
+        return None
+
+    all_files: List[str] = res["names"]
+    if res.get("paging") is None:
+        return all_files
+    elif last := res["paging"].get("last") is not None:
+        while last:  # turn over the pages
+            res = detacon.DetaController.list_drive(prefix, last=last)
+            if not isinstance(res, dict):
+                break
+            all_files += res["names"]
+
+            if res.get("paging") is None:
+                return all_files
+            last = res["paging"].get("last")
+
+    return all_files
+
+
 async def read_from_drive(
     path: str, chunk_size: Union[int, Literal[1024, 2048, 4096]] = DEFAULT_CHUNK_SIZE
 ) -> AsyncIterator[bytes]:
@@ -151,38 +177,111 @@ async def read_preprocessed_or_from_deta(
         raw_bytes += chunk
 
     if item := get_from_base(key):
-        async for chunk in read_from_drive(item.path_on_drive, chunk_size):
+        async for chunk in read_from_drive(item.preprocessed_path, chunk_size):
             yield chunk
     else:
+        other_data = None
+
         # NOTE The following are hookable?
         if file_type == "text":
             # Because Aozora-Bunko exports files with Shift-JIS.
             raw = raw_bytes.decode("shift-jis")
             parsed = Wakatu.parse_only_nouns_verbs_adjectives(Aozora.cleansing(raw))
-            preprocessed_bytes = parsed.encode("utf-8")
+            preprocessed_bytes = parsed.encode("shift-jis")
 
-            path_on_drive = Settings().deta_drive_txt_prefix + key
+            preprocessed_path = Settings().deta_drive_txt_prefix + key
+
+            other_files = {"raw": "raw" + preprocessed_path}
         elif file_type == "image":
             preprocessed_bytes = ImgNormalizer.resize_and_equalize_hist(raw_bytes)
-            path_on_drive = Settings().deta_drive_img_prefix + key
+            preprocessed_path = Settings().deta_drive_img_prefix + key
 
-            # Backgroud/Parallel 3
-            detacon.DetaController.drive_put(name="raw" + path_on_drive, data=raw_bytes)
+            (kp, desc), kpimg = imgps.akaze(preprocessed_bytes, draw=True)
+
+            kp = [
+                {"response": k.response, "pt": k.pt, "size": k.size, "angle": k.angle} for k in kp
+            ]
+            features = [
+                {"kp": k, "desc": d}
+                for k, d in zip(
+                    sorted(kp, key=lambda x: x["response"], reverse=True), desc.tolist()
+                )
+            ]
+
+            other_files = {"raw": "raw" + preprocessed_path, "akaze": "akaze" + preprocessed_path}
+            other_data = {"akaze_features": features}
+            if kpimg is None:
+                raise ValueError("`kpimg` is `None`, akaze drawing failed?")
+            detacon.DetaController.drive_put(name=other_files["akaze"], data=kpimg)
 
         # TODO Backgroud/Parallel
         # Backgroud/Parallel 1
-        detacon.DetaController.base_put(
-            DetaBaseItem(
-                key=key,
-                ts=None,
-                original_fname=file.filename,
-                path_on_drive=path_on_drive,
+        if other_data:
+            detacon.DetaController.base_put(
+                DetaBaseItem(
+                    key=key,
+                    ts=None,
+                    original_fname=file.filename,
+                    preprocessed_path=preprocessed_path,
+                    other_files=other_files,
+                    other_data=other_data,
+                )
             )
-        )
+        else:
+            detacon.DetaController.base_put(
+                DetaBaseItem(
+                    key=key,
+                    ts=None,
+                    original_fname=file.filename,
+                    preprocessed_path=preprocessed_path,
+                    other_files=other_files,
+                )
+            )
+
         # Backgroud/Parallel 2
-        detacon.DetaController.drive_put(name=path_on_drive, data=preprocessed_bytes)
+        detacon.DetaController.drive_put(name=preprocessed_path, data=preprocessed_bytes)
+        # Backgroud/Parallel 3
+        detacon.DetaController.drive_put(name=other_files["raw"], data=raw_bytes)
 
         with io.BytesIO(preprocessed_bytes) as bio:
             while chunk := bio.read(chunk_size):
                 yield chunk
                 await asyncio.sleep(ASLEEP_SECOND)
+
+
+def remove_from_base(query: Union[Dict[str, Any], List[Dict[str, Any]]]):
+    if item := query_one_base(query):
+        detacon.DetaController.base_del(item.key)
+    return None
+
+
+def remove_files(files: List[str]) -> Union[List[str], None]:
+    def removeprefix(s: str, p: str, /) -> str:
+        if s[: len(p)] == p:
+            return s[len(p) :]
+        return s
+
+    additional = []
+    for file in files:
+        if (removed := removeprefix(file, "img/")) != file:
+            additional += ["rawimg/" + removed, "akazeimg/" + removed]
+        elif (removed := removeprefix(file, "akazeimg/")) != file:
+            additional += ["rawimg/" + removed, "img/" + removed]
+        elif (removed := removeprefix(file, "rawimg/")) != file:
+            additional += ["img/" + removed, "akazeimg/" + removed]
+        elif (removed := removeprefix(file, "rawtxt/")) != file:
+            additional += ["txt/" + removed]
+        elif (removed := removeprefix(file, "txt/")) != file:
+            additional += ["rawtxt/" + removed]
+
+    res = detacon.DetaController.drive_delmany(files + additional)
+
+    if res is None:
+        return files + additional
+
+    [remove_from_base({"preprocessed_path": name}) for name in res["deleted"]]
+
+    if failefiles := res.get("failed"):
+        return failefiles
+
+    return None
