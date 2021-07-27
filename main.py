@@ -31,9 +31,11 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    return templates.TemplateResponse(
+        "root.html.j2", context={"request": request, "title": "AAD-OrgWebApp-with-ML by omae-muds"}
+    )
 
 
 # NOTE RQ aiofiles.open

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    {% include "head.html.j2" %}
+</head>
+
+<body>
+    {% include "navbar.html.j2" %}
+
+    <main class="is-flex is-flex-grow-1 is-flex-direction-column">
+        <section class="hero is-fullheight is-primary">
+            <div class="hero-body is-flex-direction-column is-justify-content-center">
+                <h1 class="title">{{ title }}</h1>
+                <h2 class="subtitle">FastAPI x Jinja2 x MeCab x OpenCV ...</h2>
+            </div>
+        </section>
+    </main>
+
+    {% include "footer.html.j2" %}
+</body>
+
+</html>

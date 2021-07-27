@@ -4,6 +4,9 @@
     {% include "head.html.j2" %}
 </head>
 <body>
+    {% include "navbar.html.j2" %}
+
+    <main class="is-flex is-flex-grow-1">
     <div class="container">
         <section class="section">
             <h1 class="title">{{ title }}</h1>
@@ -13,5 +16,7 @@
             {% block box %}{% endblock %}
         </div>
     </div>
+    </main>
+    {% include "footer.html.j2" %}
 </body>
 </html>

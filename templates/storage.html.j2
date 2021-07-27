@@ -6,112 +6,118 @@
 </head>
 
 <body>
-    <div class="container">
-        <section class="section">
-            <h1 class="title">Storage</h1>
-            <h2 class="subtitle">View Deta Drive...</h2>
-        </section>
-        <div class="box">
-            {% if msg %}
-            <div class="notification is-warning">
-                <p class="is-flex is-justify-content-center">{{ msg|safe }}</p>
-            </div>
-            {% endif %}
+    {% include "navbar.html.j2" %}
 
-            {% if view %}
-            <div class="block">
-                <h3 style="word-break: break-all;">File: {{ view }}</h3>
-                {% if prefix in ["txt", "rawtxt"] %}
-                <p style="overflow: scroll; max-height: 50vh;">{{ viewtxt }}</p>
-                {% else %}
-                <figure class="image">
-                    <img src="/srv?q={{ view }}&its={{ prefix }}&useKey=on" style="object-fit: contain; max-height: 50vh;">
+    <main class="is-flex is-flex-grow-1">
+        <div class="container">
+            <section class="section">
+                <h1 class="title">Storage</h1>
+                <h2 class="subtitle">View Deta Drive...</h2>
+            </section>
+            <div class="box">
+                {% if msg %}
+                <div class="notification is-warning">
+                    <p class="is-flex is-justify-content-center">{{ msg|safe }}</p>
+                </div>
+                {% endif %}
+        
+                {% if view %}
+                <div class="block">
+                    <h3 style="word-break: break-all;">File: {{ view }}</h3>
+                    {% if prefix in ["txt", "rawtxt"] %}
+                    <p style="overflow: scroll; max-height: 50vh;">{{ viewtxt }}</p>
+                    {% else %}
+                    <figure class="image">
+                        <img src="/srv?q={{ view }}&its={{ prefix }}&useKey=on" style="object-fit: contain; max-height: 50vh;">
+                    </figure>
+                    {% endif %}
+                </div>
+                {% endif %}
+        
+                {% if comp_table %}
+                <div class="block">
+                    <div class="table-container">
+                        {{ comp_table|safe }}
+                    </div>
+                </div>
+                {% endif %}
+        
+                {% if comp_imgname %}
+                <h3>Result Image</h3>
+                <figure class="image mb-2">
+                    <img src="{{ comp_imgname }}" style="object-fit: contain; max-height: 50vh; min-width: 256px;">
                 </figure>
                 {% endif %}
-            </div>
-            {% endif %}
-
-            {% if comp_table %}
-            <div class="block">
-                <div class="table-container">
-                    {{ comp_table|safe }}
-                </div>
-            </div>
-            {% endif %}
-
-            {% if comp_imgname %}
-            <h3>Result Image</h3>
-            <figure class="image mb-2">
-                <img src="{{ comp_imgname }}" style="object-fit: contain; max-height: 50vh; min-width: 256px;">
-            </figure>
-            {% endif %}
-
-            <form class="field" method="GET">
-                <style>
-                    nav.panel > * {
-                        word-break: break-word;
-                    }
-                </style>
-                <nav class="panel">
-                    <p class="panel-heading">
-                        Deta Drive
-                        {% if prefix %}
-                        ({{ prefix }})
+        
+                <form class="field" method="GET">
+                    <style>
+                        nav.panel > * {
+                            word-break: break-word;
+                        }
+                    </style>
+                    <nav class="panel">
+                        <p class="panel-heading">
+                            Deta Drive
+                            {% if prefix %}
+                            ({{ prefix }})
+                            {% endif %}
+                        </p>
+        
+                        {% for dir in dirs %}
+                        <a class="panel-block" href="/storage/{{ dir }}">
+                            <span class="panel-icon">
+                                <span class="fas fa-folder"></span>
+                            </span>
+                            {{ dir }}
+                        </a>
+                        {% endfor %}
+        
+                        {% if files %}
+                        {% for file in files %}
+        
+                        {% if file.name == view %}
+                        <a class="panel-block is-active" href="?view={{ file.name }}">
+                        {% else %}
+                        <a class="panel-block" href="?view={{ file.name }}">
                         {% endif %}
-                    </p>
-
-                    {% for dir in dirs %}
-                    <a class="panel-block" href="/storage/{{ dir }}">
-                        <span class="panel-icon">
-                            <span class="fas fa-folder"></span>
-                        </span>
-                        {{ dir }}
-                    </a>
-                    {% endfor %}
-
-                    {% if files %}
-                    {% for file in files %}
-
-                    {% if file.name == view %}
-                    <a class="panel-block is-active" href="?view={{ file.name }}">
-                    {% else %}
-                    <a class="panel-block" href="?view={{ file.name }}">
-                    {% endif %}
-
-                        <input type="checkbox" name="targets" value="{{ file.name }}">
-                        <span class="panel-icon">
-                            <span class="far fa-file-alt"></span>
-                        </span>
-                        {{ file.name }}
-                        {% if file.description %}
-                        <span class="ml-4 has-text-weight-light">{{ file.description }}</span>
-                        {% endif %}
-                    </a>
-                    {% endfor %}
-
-                    <div class="panel-block is-justify-content-center">
-                        <div class="columns" style="min-width: 100%;">
-                            <div class="column is-one-twice">
-                                {% if prefix in ["txt", "img", "rawimg"] %}
-                                <button class="button is-link is-fullwidth" name="act" value="comp">
-                                {% else %}
-                                <button class="button is-link is-fullwidth is-invisible" name="act" value="comp">
-                                {% endif %}
-                                    Compare
-                                </button>
-                            </div>
-                            <div class="column">
-                                <button class="button is-danger is-outlined is-fullwidth" name="act" value="del">
-                                    Delete ALL
-                                </button>
+        
+                            <input type="checkbox" name="targets" value="{{ file.name }}">
+                            <span class="panel-icon">
+                                <span class="far fa-file-alt"></span>
+                            </span>
+                            {{ file.name }}
+                            {% if file.description %}
+                            <span class="ml-4 has-text-weight-light">{{ file.description }}</span>
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+        
+                        <div class="panel-block is-justify-content-center">
+                            <div class="columns" style="min-width: 100%;">
+                                <div class="column is-one-twice">
+                                    {% if prefix in ["txt", "img", "rawimg"] %}
+                                    <button class="button is-link is-fullwidth" name="act" value="comp">
+                                    {% else %}
+                                    <button class="button is-link is-fullwidth is-invisible" name="act" value="comp">
+                                    {% endif %}
+                                        Compare
+                                    </button>
+                                </div>
+                                <div class="column">
+                                    <button class="button is-danger is-outlined is-fullwidth" name="act" value="del">
+                                        Delete ALL
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    {% endif %}
-                </nav>
-            </form>
+                        {% endif %}
+                    </nav>
+                </form>
+            </div>
         </div>
-    </div>
+    </main>
+
+    {% include "footer.html.j2" %}
 </body>
 
 </html>

@@ -3,14 +3,30 @@
 <div class="block">
     <form class="field are-medium is-justify-content-center" method="POST" enctype="multipart/form-data">
         <div class="control mb-4">
-            <div id="choose-file" class="file has-name is-fullwidth">
+            <div id="choose-file" class="file has-name is-fullwidth is-hidden-touch">
                 <label class="file-label">
                     <input class="file-input" type="file" accept="image/*" name="file" required>
                     <span class="file-cta">
                         <span class="file-icon">
                             <span class="fas fa-upload"></span>
                         </span>
-                        <span class="file-label">
+                        <span class="file-label has-text-centered">
+                            画像ファイル...
+                        </span>
+                    </span>
+                    <span class="file-name is-right has-text-grey">
+                        (未選択)
+                    </span>
+                </label>
+            </div>
+            <div id="choose-file" class="file has-name is-boxed is-fullwidth is-hidden-desktop">
+                <label class="file-label">
+                    <input class="file-input" type="file" accept="image/*" name="file" required>
+                    <span class="file-cta">
+                        <span class="file-icon">
+                            <span class="fas fa-upload"></span>
+                        </span>
+                        <span class="file-label has-text-centered">
                             画像ファイル...
                         </span>
                     </span>
