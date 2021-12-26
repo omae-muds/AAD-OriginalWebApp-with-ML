@@ -21,6 +21,5 @@ We were allowed to create most of them freely, **but it meant very hard work.**
 - To reduce the load of front-end development, I chose Bulma as a CSS framework.
 
 - Deployed a Python program to Heroku for the first time.
-- First time to use Reddis.
 - Using Deta Base, which is similar to Key-Value Store.
 - Using Deta Drive for storage.
